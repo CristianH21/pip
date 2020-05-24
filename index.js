@@ -6,7 +6,11 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Init middleware
-app.use(cors());
+const corsOptions = {
+    origin: 'http://institutopatriaprimaria.com/',
+    optionsSuccessStatus: 200
+}
+app.use(cors(corsOptions));
 app.use(express.json({ extended: false }));
 
 // Init routes
