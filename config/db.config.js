@@ -3,7 +3,7 @@
 const Pool = require('pg').Pool
 const pool = new Pool({
   user: 'superadmin',
-  host: 'aahjmjqcssm6py.cx5wk53ci6sc.us-east-2.rds.amazonaws.com',
+  host: 'aa193weavnirl1c.cx5wk53ci6sc.us-east-2.rds.amazonaws.com',
   database: 'ebdb',
   password: 'pip_2020?',
   port: 5432,
