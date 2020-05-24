@@ -7,7 +7,7 @@ const PORT = process.env.PORT || 5000;
 
 // Init middleware
 const corsOptions = {
-    origin: 'http://institutopatriaprimaria.com/',
+    origin: 'http://institutopatriaprimaria.com',
     optionsSuccessStatus: 200
 }
 app.use(cors(corsOptions));
