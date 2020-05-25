@@ -83,6 +83,9 @@ const getProfileByUserId = userId => {
             case 'staff':
               getProfileInfo = await client.query('SELECT * FROM staff WHERE staff_number = $1', [user_number]);
               break;
+            case 'admin':
+              getProfileInfo = await client.query('SELECT * FROM admin WHERE admin_username = $1', [user_number]);
+              break;
             default:
               break;
           }
