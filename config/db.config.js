@@ -43,7 +43,7 @@ const getUserAuth = userId => {
     try {
         await client.query('BEGIN');
         const queryText = `
-          SELECT users.id, users.user_number, users.user_type, roles.role  
+          SELECT users.id, users.user_number, users.user_type, users.new_user, roles.role  
           FROM users 
           INNER JOIN user_roles
           ON users.id = user_roles.id_users_fk
@@ -275,8 +275,6 @@ const addTeacher = data => {
       const existsQuery = `SELECT user_number FROM users WHERE user_number = $1`;
       const existsRes = await client.query(existsQuery, [staffNumber]);
 
-      console.log('Does exists: ', existsRes);
-
       if (existsRes.rowCount > 0) throw Error('Matricula ya existe.');
 
       const userQuery = `
@@ -465,6 +463,29 @@ const addClassroom = data => {
     }
   });
 }
+
+const updatePassword = (userId, hash) => {
+  return new Promise( async (resolve, reject) => {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const queryText = `
+        UPDATE users
+        SET password = $1, new_user = $2
+        WHERE id = $3 AND enable = $4 AND deleted_logical = $5`;
+      const res = await client.query(queryText, [hash, false, userId, true, false]);
+      await client.query('COMMIT');
+      resolve(res);
+    } catch (error) {
+      await client.query('ROLLBACK');
+      reject(error);
+    } finally {
+      client.release();
+    }
+  });
+}
+
+
 module.exports = {
   userLogin,
   getUserAuth,
@@ -480,5 +501,6 @@ module.exports = {
   addGroup,
   getStaff,
   getClassrooms,
-  addClassroom
+  addClassroom,
+  updatePassword
 }

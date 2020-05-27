@@ -4,8 +4,7 @@ module.exports = {
         '/api/profile',
         '/api/users',
         '/api/groups',
-        '/api/subjects',
-        '/api/classrooms'
+        '/api/subjects'
     ],
     admin: [
         '/api/auth', 
