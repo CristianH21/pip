@@ -234,7 +234,7 @@ const getTeachers = userId => {
         RIGHT JOIN staff s
         ON s.id_staff_type_fk = st.id
         WHERE s.enable = $1 AND s.deleted_logical = $2 AND st.type = $3`;
-      const res = await client.query(queryText, [true, false, 'docente']);
+      const res = await client.query(queryText, [true, false, 'teacher']);
       await client.query('COMMIT');
       resolve(res);
     } catch (error) {
@@ -262,7 +262,7 @@ const addTeacher = data => {
       country,
       zipCode,
       reference,
-      password
+      hash
     } = data;
 
     const date = new Date().toISOString();
@@ -284,11 +284,22 @@ const addTeacher = data => {
         (user_number, password, user_type, new_user, date_registered, enable, deleted_logical)
         VALUES 
         ($1, $2, $3, $4, $5, $6, $7) RETURNING id`;
-      const userRes = await client.query(userQuery, [staffNumber, password, 'staff', true, date, true, false]);
+      const userRes = await client.query(userQuery, [staffNumber, hash, 'staff', true, date, true, false]);
       const userId = userRes.rows[0].id;
 
+      const roleQuery = `SELECT id FROM roles WHERE role = $1 AND enable = $2 AND deleted_logical = $3`;
+      const roleRes = await client.query(roleQuery, ['teacher', true, false]);
+      const roleId = roleRes.rows[0].id;
+
+      const userRoleQuery = `
+        INSERT INTO user_roles
+        (id_users_fk, id_roles_fk, date_registered, enable, deleted_logical)
+        VALUES
+        ($1, $2, $3, $4, $5)`;
+      await client.query(userRoleQuery, [userId, roleId, date, true, false]);
+
       const staffTypeQuery = `SELECT id FROM staff_type WHERE type = $1 AND enable = $2 AND deleted_logical = $3`;
-      const staffTypeRes = await client.query(staffTypeQuery, ['docente', true, false]);
+      const staffTypeRes = await client.query(staffTypeQuery, ['teacher', true, false]);
       const staffTypeId = staffTypeRes.rows[0].id;
       
       const staffQuery = `
@@ -297,7 +308,6 @@ const addTeacher = data => {
         VALUES 
         ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)`;
       const staffRes = await client.query(staffQuery, [staffNumber, firstName, lastNameFather, lastNameMother, dateOfBirth, gender, address, city, state, country, zipCode, reference, date, true, false, staffTypeId, userId]);
-      console.log('DB res: ', staffRes);
       await client.query('COMMIT');
       resolve(staffRes);
     } catch (error) {
