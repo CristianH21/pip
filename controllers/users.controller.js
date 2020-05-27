@@ -1,4 +1,5 @@
 "use strict";
+const bcrypt = require('bcryptjs');
 const { getStudents, addStudent, getTeachers, addTeacher, getStaff } = require('../config/db.config');
 
 const getAllStudents = async (req, res) => {
@@ -32,6 +33,9 @@ const getAllStudents = async (req, res) => {
 const createStudent = async (req, res) => {
 
     const { data } = req.body;
+
+    const salt = bcrypt.genSaltSync(10);
+    data['hash'] = bcrypt.hashSync(data.password, salt);
 
     try {
         const userRes = await addStudent(data);
@@ -84,6 +88,9 @@ const getAllTeachers = async (req, res) => {
 const createTeacher = async (req, res) => {
 
     const { data } = req.body;
+
+    const salt = bcrypt.genSaltSync(10);
+    data['hash'] = bcrypt.hashSync(data.password, salt);
 
     try {
         const userRes = await addTeacher(data);

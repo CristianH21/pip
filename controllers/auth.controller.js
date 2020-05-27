@@ -1,5 +1,6 @@
 "use strict";
 
+const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const config = require('config');
 const User = require('../models/user.model');
@@ -17,9 +18,17 @@ const login = async (req, res) => {
         if (loginRes.rowCount == 0) {
             return res.status(400).json({
                 errors: [{ msg: 'Datos invalidos.'}]
-            })
+            });
         }
+        
+        const match = await isMatch(password, loginRes.rows[0].password);
 
+        if (!match) {
+            return res.status(400).json({
+                errors: [{ msg: 'Datos invalidos.'}]
+            });
+        }
+        
         const payload = {
             user: {
                 userId: loginRes.rows[0].id,
@@ -39,6 +48,7 @@ const login = async (req, res) => {
                     token: token
                 });
             });
+
     } catch (error) {
         res.status(400).json({
             errors: [{ msg: error.message}]
@@ -70,6 +80,15 @@ const authUser = async (req, res) => {
             errors: [{ msg: error.message}]
         });
     }
+}
+
+const isMatch = (password, hashPassword) => {
+    return new Promise((resolve, reject) => {
+        bcrypt.compare(password, hashPassword, (err, result) => {
+            if (err) reject(err);
+            resolve(result);
+        });
+    });
 }
 
 module.exports = {

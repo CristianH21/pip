@@ -28,7 +28,7 @@ const getProfile = async (req, res) => {
 };
 
 const editProfile = async (req, res) => {
-    
+
     const { userId } = req.user;
     const { formData, userType, profileType } = req.body;
 

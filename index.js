@@ -22,6 +22,7 @@ app.use('/api/profile', require('./routes/profile.route'));
 app.use('/api/users', require('./routes/users.route'));
 app.use('/api/subjects', require('./routes/subjects.route'));
 app.use('/api/groups', require('./routes/groups.route'));
+app.use('/api/classrooms', require('./routes/classrooms.route'));
 
 app.listen(PORT,  () => console.log(`Server running on port 5000`));
 

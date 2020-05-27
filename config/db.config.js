@@ -15,18 +15,17 @@ const userLogin = ({ userNumber, password }) => {
         try {
             await client.query('BEGIN');
             const queryText = `
-              SELECT users.id, users.user_number, roles.role
+              SELECT users.id, users.user_number, users.password, roles.role
               FROM users
               INNER JOIN user_roles
               ON users.id = user_roles.id_users_fk
               INNER JOIN roles
               ON user_roles.id_roles_fk = roles.id
-              WHERE user_number = $1 
-              AND users.password = $2
-              AND users.enable = $3 
-              AND users.deleted_logical = $4
+              WHERE users.user_number = $1
+              AND users.enable = $2 
+              AND users.deleted_logical = $3
             `;
-            const res = await client.query(queryText, [userNumber, password, true, false]);
+            const res = await client.query(queryText, [userNumber, true, false]);
             await client.query('COMMIT');
             resolve(res);
           } catch (error) {
@@ -77,7 +76,7 @@ const getProfileByUserId = userId => {
           let getProfileInfo;
           const { user_type, user_number } = res.rows[0];
           switch (user_type) {
-            case 'student':
+            case 'students':
               getProfileInfo = await client.query('SELECT * FROM students WHERE student_number = $1', [user_number]);
               break;
             case 'staff':
@@ -105,6 +104,7 @@ const getProfileByUserId = userId => {
 
 const updateProfile = (userId, data, userType, profileType) => {
   return new Promise( async (resolve, reject) => {
+    console.log(userId, data, userType, profileType);
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
@@ -174,7 +174,7 @@ const addStudent = data => {
       country,
       zipCode,
       reference,
-      password
+      hash
     } = data;
 
     const date = new Date().toISOString();
@@ -188,20 +188,30 @@ const addStudent = data => {
       if (existsRes.rowCount > 0) throw Error('Matricula ya existe.');
 
       const userQuery = `
-          INSERT INTO users 
-          (user_number, password, user_type, new_user, date_registered, enable, deleted_logical)
-          VALUES 
-          ($1, $2, $3, $4, $5, $6, $7) RETURNING id`;
-      const userRes = await client.query(userQuery, [studentNumber, password, 'student', true, date, true, false]);
+        INSERT INTO users 
+        (user_number, password, user_type, new_user, date_registered, enable, deleted_logical)
+        VALUES 
+        ($1, $2, $3, $4, $5, $6, $7) RETURNING id`;
+      const userRes = await client.query(userQuery, [studentNumber, hash, 'students', true, date, true, false]);
       const userId = userRes.rows[0].id;
 
+      const roleQuery = `SELECT id FROM roles WHERE role = $1 AND enable = $2 AND deleted_logical = $3`;
+      const roleRes = await client.query(roleQuery, ['student', true, false]);
+      const roleId = roleRes.rows[0].id;
+
+      const userRoleQuery = `
+        INSERT INTO user_roles
+        (id_users_fk, id_roles_fk, date_registered, enable, deleted_logical)
+        VALUES
+        ($1, $2, $3, $4, $5)`;
+      await client.query(userRoleQuery, [userId, roleId, date, true, false]);
+
       const studentQuery = `
-      INSERT INTO students
-      (student_number, first_name, last_name_father, last_name_mother, date_of_birth, gender, address, city, state, country, zip_code, reference, date_registered, enable, deleted_logical, id_users_fk)
-      VALUES 
-      ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)`;
+        INSERT INTO students
+        (student_number, first_name, last_name_father, last_name_mother, date_of_birth, gender, address, city, state, country, zip_code, reference, date_registered, enable, deleted_logical, id_users_fk)
+        VALUES 
+        ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)`;
       const studentRes = await client.query(studentQuery, [studentNumber, firstName, lastNameFather, lastNameMother, dateOfBirth, gender, address, city, state, country, zipCode, reference, date, true, false, userId]);
-      console.log('DB res: ', studentRes);
       await client.query('COMMIT');
       resolve(studentRes);
     } catch (error) {
@@ -410,6 +420,41 @@ const getStaff = () => {
   }); 
 }
 
+const getClassrooms = () => {
+  return new Promise( async (resolve, reject) => {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const queryText = `SELECT * FROM classrooms WHERE enable = $1 AND deleted_logical = $2`;
+      const res = await client.query(queryText, [true, false]);
+      await client.query('COMMIT');
+      resolve(res);
+    } catch (error) {
+      await client.query('ROLLBACK');
+      reject(error);
+    } finally {
+      client.release();
+    }
+  });
+}
+
+const addClassroom = data => {
+  return new Promise( async (resolve, reject) => {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const queryText = `SELECT * FROM classrooms WHERE enable = $1 AND deleted_logical = $2`;
+      const res = await client.query(queryText, [true, false]);
+      await client.query('COMMIT');
+      resolve(res);
+    } catch (error) {
+      await client.query('ROLLBACK');
+      reject(error);
+    } finally {
+      client.release();
+    }
+  });
+}
 module.exports = {
   userLogin,
   getUserAuth,
@@ -423,5 +468,7 @@ module.exports = {
   addSubject,
   getGroups,
   addGroup,
-  getStaff
+  getStaff,
+  getClassrooms,
+  addClassroom
 }
