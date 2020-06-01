@@ -21,7 +21,6 @@ const getAllSubjects = async (req, res) => {
         });
         
     } catch (error) {
-        console.log('Error in get subjects.', error);
         res.status(400).json({
             errors: [{ msg: error.message}]
         });
@@ -48,9 +47,12 @@ const createSubject = async (req, res) => {
             result: userRes.rows
         });
     } catch (error) {
-        
+        res.status(400).json({
+            errors: [{ msg: error.message}]
+        });
     }
 }
+
 
 module.exports = {
     getAllSubjects,

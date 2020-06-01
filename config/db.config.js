@@ -339,16 +339,16 @@ const getSubjects = () => {
 const addSubject = data => {
   return new Promise( async (resolve, reject) => {
     const client = await pool.connect();
-    const { name, abbreviation } = data;
+    const { name, abbreviation, grade } = data;
     const date = new Date().toISOString();
     try {
       await client.query('BEGIN');
       const queryText = `
         INSERT INTO subjects 
-        (name, abbreviation, date_registered, enable, deleted_logical)
+        (name, abbreviation, grade, date_registered, enable, deleted_logical)
         VALUES
-        ($1, $2, $3, $4, $5)`;
-      const res = await client.query(queryText, [name, abbreviation, date, true, false]);
+        ($1, $2, $3, $4, $5, $6)`;
+      const res = await client.query(queryText, [name, abbreviation, grade, date, true, false]);
       await client.query('COMMIT');
       resolve(res);
     } catch (error) {
@@ -358,6 +358,85 @@ const addSubject = data => {
       client.release();
     }
   }); 
+}
+
+const getSubjectsByStudent = studentId => {
+  return new Promise( async (resolve, reject) => {
+    const client = await pool.connect();
+    let subjects = {
+      rowCount: 0,
+      rows: []
+    };
+    try {
+      await client.query('BEGIN');
+      const queryText = `
+        SELECT c.id as classroom_id
+        FROM classrooms c
+        INNER JOIN classrooms_students cs
+        ON cs.id_classrooms_fk = c.id
+        WHERE cs.id_students_fk = $1
+        AND cs.enable = $2
+        AND cs.deleted_logical = $3
+      `;
+      const res = await client.query(queryText, [studentId, true, false]);
+
+      res.rows.forEach( async (classroom) => {
+        const subjectsRes = await client.query(`
+          SELECT s.id as subject_id, s.name, cr.room, cr.section, cr.year, c.id as class_id
+          FROM subjects s
+          INNER JOIN classes c
+          ON c.id_subjects_fk = s.id
+          INNER JOIN classrooms cr
+          ON cr.id = c.id_classrooms_fk
+          WHERE c.id_classrooms_fk = $1
+          AND c.enable = $2
+          AND c.deleted_logical = $3`,
+        [classroom.classroom_id, true, false]);
+
+        subjectsRes.rows.forEach( async (subject) => {
+          subjects.rows.push(subject);
+        });
+        subjects.rowCount = subjects.rows.length;
+      });
+
+      await client.query('COMMIT');
+      resolve(subjects);
+    } catch (error) {
+      await client.query('ROLLBACK');
+      reject(error);
+    } finally {
+      client.release();
+    }
+  });  
+}
+
+const getSubjectsByTeacher = teacherId => {
+  return new Promise( async (resolve, reject) => {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const queryText = `
+        SELECT cr.id as classroom_id, cr.room, cr.section, s.name, c.id as class_id, c.enable, c.deleted_logical
+        FROM classes c
+        INNER JOIN classrooms cr
+        ON cr.id = c.id_classrooms_fk
+        INNER JOIN subjects s
+        ON s.id = c.id_subjects_fk
+        WHERE cr.id_staff_fk = $1
+        AND c.enable = $2
+        AND c.deleted_logical = $3
+      `;
+      const res = await client.query(queryText, [teacherId, true, false]);
+
+      await client.query('COMMIT');
+      resolve(res);
+    } catch (error) {
+      await client.query('ROLLBACK');
+      reject(error);
+    } finally {
+      client.release();
+    }
+  });  
 }
 
 const getGroups = () => {
@@ -449,10 +528,185 @@ const getClassrooms = () => {
 const addClassroom = data => {
   return new Promise( async (resolve, reject) => {
     const client = await pool.connect();
+    const { section, room, year, staffId } = data;
+    const date = new Date().toISOString();
     try {
       await client.query('BEGIN');
-      const queryText = `SELECT * FROM classrooms WHERE enable = $1 AND deleted_logical = $2`;
-      const res = await client.query(queryText, [true, false]);
+      const queryText = `
+        INSERT INTO classrooms
+        (section, room, year, date_registered, enable, deleted_logical, id_staff_fk)
+        VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id
+      `;
+      const res = await client.query(queryText, [section, room, year, date, true, false, staffId]);
+      const classroomId = res.rows[0].id;
+
+      const querySubjects = `
+        SELECT id FROM subjects WHERE grade = $1 
+        AND enable = $2 AND deleted_logical = $3`;
+      const resSubjects = await client.query(querySubjects, [room, true, false]);
+
+      console.log('subjects: ', resSubjects)
+      
+      resSubjects.rows.forEach( async (subject) => {
+        await client.query(`
+          INSERT INTO classes 
+          (id_subjects_fk, id_classrooms_fk, date_registered, enable, deleted_logical) 
+          VALUES ($1, $2, $3, $4, $5)`,
+          [subject.id, classroomId, date, false, false]);
+      });
+
+      await client.query('COMMIT');
+      resolve(res);
+    } catch (error) {
+      await client.query('ROLLBACK');
+      reject(error);
+    } finally {
+      client.release();
+    }
+  });
+}
+
+const getClassroomById = id => {
+  return new Promise( async (resolve, reject) => {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const queryText = `
+        SELECT classrooms.id, classrooms.section, classrooms.room, classrooms.year,
+        staff.id AS staff_id, staff.staff_number, staff.first_name, staff.last_name_father, staff.last_name_mother
+        FROM classrooms
+        INNER JOIN staff
+        ON classrooms.id_staff_fk = staff.id
+        WHERE classrooms.id = $1 AND classrooms.enable = $2 AND classrooms.deleted_logical = $3`;
+      const res = await client.query(queryText, [id, true, false]);
+
+      const subjectsQuery = `
+        SELECT s.id, s.name, c.enable
+        FROM subjects s
+        INNER JOIN classes c
+        ON c.id_subjects_fk = s.id
+        WHERE c.id_classrooms_fk = $1
+        AND s.enable = $2
+        AND s.deleted_logical = $3
+      `;
+      const subjectsRes = await client.query(subjectsQuery, [id, true, false]);
+
+      const studentsQuery = `
+        SELECT s.id, s.student_number, s.first_name, s.last_name_father, s.last_name_mother
+        FROM students s
+        INNER JOIN classrooms_students cs
+        ON cs.id_students_fk = s.id
+        WHERE cs.id_classrooms_fk = $1
+        AND cs.enable = $2
+        AND cs.deleted_logical = $3
+      `;
+      const studentsRes = await client.query(studentsQuery, [id, true, false]);
+
+      res.rows[0].subjects = subjectsRes.rows;
+      res.rows[0].students = studentsRes.rows;
+
+      await client.query('COMMIT');
+      resolve(res);
+    } catch (error) {
+      await client.query('ROLLBACK');
+      reject(error);
+    } finally {
+      client.release();
+    }
+  });
+}
+
+const updateClassroom = data => {
+  return new Promise( async (resolve, reject) => {
+    const client = await pool.connect();
+    const { id, room, section, year, staffId, subjects, students } = data;
+    const date = new Date().toISOString();
+    try {
+      await client.query('BEGIN');
+      const queryText = `
+        UPDATE classrooms
+        SET room = $1, section = $2, year = $3, id_staff_fk = $4
+        WHERE id = $5 AND enable = $6 AND deleted_logical = $7`;
+      const res = await client.query(queryText, [room, section, year, staffId, id, true, false]);
+      await client.query('COMMIT');
+      resolve(res);
+    } catch (error) {
+      await client.query('ROLLBACK');
+      reject(error);
+    } finally {
+      client.release();
+    }
+  });
+}
+
+const updateClassroomStudents = data => {
+  return new Promise( async (resolve, reject) => {
+    const client = await pool.connect();
+    const { classroom_id, students } = data;
+    const date = new Date().toISOString();
+    try {
+      await client.query('BEGIN');
+      const queryText = `
+      SELECT id_students_fk FROM classrooms_students 
+      WHERE id_classrooms_fk = $1 AND enable = $2 AND deleted_logical = $3`;
+      const res = await client.query(queryText, [classroom_id, true, false]);
+      console.log(res);
+      if (res.rowCount > 0 ) {
+        const toInsert = students.filter(i => !res.rows.some(j => j.id_students_fk === i.id));
+        console.log('toInsert: ', toInsert);
+        toInsert.forEach( async (student) => {
+          await client.query(`
+          INSERT INTO classrooms_students
+          (id_classrooms_fk, id_students_fk, date_registered, enable, deleted_logical) 
+          VALUES ($1, $2, $3, $4, $5)`,
+          [classroom_id, student.id, date, true, false]);
+        });
+        res.rowCount = toInsert.length;
+        res.rows = toInsert;
+      } else {
+        students.forEach( async (student) => {
+          await client.query(`
+          INSERT INTO classrooms_students
+          (id_classrooms_fk, id_students_fk, date_registered, enable, deleted_logical) 
+          VALUES ($1, $2, $3, $4, $5)`,
+          [classroom_id, student.id, date, true, false]);
+        });
+        res.rowCount = students.length;
+        res.rows = students;
+      }
+      await client.query('COMMIT');
+      resolve(res);
+    } catch (error) {
+      await client.query('ROLLBACK');
+      reject(error);
+    } finally {
+      client.release();
+    }
+  });
+}
+
+const updateClassroomSubjects = data => {
+  return new Promise( async (resolve, reject) => {
+    const client = await pool.connect();
+    const { classroom_id, subjects } = data;
+    //const date = new Date().toISOString();
+    let res = {
+      rows: [],
+      rowCount: 0
+    };
+    try {
+      await client.query('BEGIN');
+      subjects.forEach( async (subject) => {
+        let resSubject = await client.query(`
+          UPDATE classes
+          SET enable = $1
+          WHERE id_subjects_fk = $2 AND id_classrooms_fk = $3 AND deleted_logical = $4
+          RETURNING id
+        `, 
+        [subject.enable, subject.id, classroom_id, false]);
+        res.rows.push(resSubject.rows[0]);
+        res.rowCount = res.rows.length;
+      });
       await client.query('COMMIT');
       resolve(res);
     } catch (error) {
@@ -485,6 +739,128 @@ const updatePassword = (userId, hash) => {
   });
 }
 
+const getClassworkByClass = () => {
+  return new Promise( async (resolve, reject) => {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const queryText = `
+        SELECT cr.id as classroom_id, cr.room, cr.section, s.name, c.id as class_id, c.enable, c.deleted_logical
+        FROM classes c
+        INNER JOIN classrooms cr
+        ON cr.id = c.id_classrooms_fk
+        INNER JOIN subjects s
+        ON s.id = c.id_subjects_fk
+        WHERE cr.id_staff_fk = $1
+        AND c.enable = $2
+        AND c.deleted_logical = $3
+      `;
+      const res = await client.query(queryText, [teacherId, true, false]);
+
+      await client.query('COMMIT');
+      resolve(res);
+    } catch (error) {
+      await client.query('ROLLBACK');
+      reject(error);
+    } finally {
+      client.release();
+    }
+  });
+}
+
+const addPeriod = (classId, data) => {
+  return new Promise( async (resolve, reject) => {
+    const client = await pool.connect();
+    const { name } = data;
+    const date = new Date().toISOString();
+    try {
+      await client.query('BEGIN');
+      const queryText = `
+        INSERT INTO periods
+        (name, id_classes_fk, date_registered, enable, deleted_logical) 
+        VALUES ($1, $2, $3, $4, $5)`;
+      const res = await client.query(queryText, [name, classId, date, true, false]);
+      await client.query('COMMIT');
+      resolve(res);
+    } catch (error) {
+      await client.query('ROLLBACK');
+      reject(error);
+    } finally {
+      client.release();
+    }
+  });
+}
+
+const getClasswork = classId => {
+  return new Promise( async (resolve, reject) => {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const queryText = `
+        SELECT * FROM periods WHERE id_classes_fk = $1 AND enable = $2 AND deleted_logical = $3`;
+      const res = await client.query(queryText, [classId, true, false]);
+
+      res.rows.forEach(async (period, index) => {
+        res.rows[index].assignments = null;
+        const assignmentsRes = await client.query(`
+          SELECT * FROM assignments WHERE id_periods_fk = $1 AND enable = $2 AND deleted_logical = $3`,
+          [period.id, true, false]);
+          res.rows[index].assignments = assignmentsRes.rows;
+          console.log(res.rows[index]);
+      });
+
+      await client.query('COMMIT');
+      resolve(res);
+    } catch (error) {
+      await client.query('ROLLBACK');
+      reject(error);
+    } finally {
+      client.release();
+    }
+  });
+}
+
+const addAssignment = (periodId, data) => {
+  return new Promise( async (resolve, reject) => {
+    const client = await pool.connect();
+    const { type, title, instructions } = data;
+    const date = new Date().toISOString();
+    try {
+      await client.query('BEGIN');
+      const queryText = `
+        INSERT INTO assignments
+        (type, title, instructions, id_periods_fk, date_registered, enable, deleted_logical) 
+        VALUES ($1, $2, $3, $4, $5, $6, $7)`;
+      const res = await client.query(queryText, [type, title, instructions, periodId, date, true, false]);
+      await client.query('COMMIT');
+      resolve(res);
+    } catch (error) {
+      await client.query('ROLLBACK');
+      reject(error);
+    } finally {
+      client.release();
+    }
+  });
+}
+
+const getAssignmentById = assignmentId => {
+  return new Promise( async (resolve, reject) => {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const queryText = `
+        SELECT * FROM assignments WHERE id = $1 AND enable = $2 AND deleted_logical = $3`;
+      const res = await client.query(queryText, [assignmentId, true, false]);
+      await client.query('COMMIT');
+      resolve(res);
+    } catch (error) {
+      await client.query('ROLLBACK');
+      reject(error);
+    } finally {
+      client.release();
+    }
+  });
+}
 
 module.exports = {
   userLogin,
@@ -497,10 +873,21 @@ module.exports = {
   addTeacher,
   getSubjects,
   addSubject,
+  getSubjectsByStudent,
+  getSubjectsByTeacher,
   getGroups,
   addGroup,
   getStaff,
   getClassrooms,
   addClassroom,
-  updatePassword
+  getClassroomById,
+  updateClassroom,
+  updateClassroomStudents,
+  updateClassroomSubjects,
+  updatePassword,
+  getClassworkByClass,
+  addPeriod,
+  getClasswork,
+  addAssignment,
+  getAssignmentById
 }

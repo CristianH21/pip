@@ -13,6 +13,7 @@ module.exports = (req, res, next) => {
 
     try {
         const decoded = jwt.verify(token, config.get('jwtSecret'));
+
         if (roles[decoded.user.role].find( url => { return url === req.baseUrl })) {
             req.user = decoded.user;
             next();
