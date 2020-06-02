@@ -1,6 +1,7 @@
 "use strict";
 
 const { getSubjectsByStudent, getClasswork } = require('../config/db.config');
+const awsS3 = require('../config/aws.config');
 
 const fetchSubjectsByStudent = async (req, res) => {
 
@@ -54,7 +55,24 @@ const fecthClasswork = async (req, res) => {
     }
 }
 
+const uploadAssignment = async (req, res) => {
+
+    const { data } = req.body;
+    var fileBuffer = Buffer.from(data.fileName, 'base64');
+    data.buffer = fileBuffer;
+    
+    try {
+        const s3 = await awsS3.sign_s3_v2(data);
+        console.log('s3 response: ', s3);
+    } catch (error) {
+        console.error(error);
+    }
+
+    
+}
+
 module.exports = {
     fetchSubjectsByStudent,
-    fecthClasswork
+    fecthClasswork,
+    uploadAssignment
 }

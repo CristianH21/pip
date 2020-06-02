@@ -7,5 +7,6 @@ const StudentsController = require('../controllers/students.controller');
 
 router.get('/classrooms/:id', auth, StudentsController.fetchSubjectsByStudent);
 router.get('/class/:id', auth, StudentsController.fecthClasswork);
+router.post('/assignment/:id', auth, StudentsController.uploadAssignment);
 
 module.exports = router;
