@@ -11,21 +11,18 @@ aws.config.update({
 const S3_BUCKET = process.env.Bucket;
 
 
-exports.sign_s3_v2 = data => {
+exports.sign_s3_v2 = file => {
     return new Promise( async (resolve, reject) => {
 
-        const { fileName, fileType, buffer } = data;
-
-        console.log(fileName)
-        console.log(fileType)
-
+        const { name, data, size, mimetype } = file;
+ 
         const s3 = new aws.S3();
         const s3Params = {
             Bucket: S3_BUCKET,
-            Key: fileName,
-            Body: buffer,
+            Key: name,
+            Body: data,
             Expires: 500,
-            ContentType: fileType,
+            ContentType: mimetype,
             ACL: 'public-read'
         };
 
@@ -33,15 +30,6 @@ exports.sign_s3_v2 = data => {
             if (err) reject(err);
             resolve(res);
         });
-
-        // s3.getSignedUrl('putObject', s3Params, (err, res) => {
-        //     if (err) reject(err);
-        //     const returnData = {
-        //         signedRequest: res,
-        //         url: `https://${S3_BUCKET}.s3.amazonaws.com/${fileName}`
-        //     };
-        //     resolve(returnData);
-        // });
 
     });
 }

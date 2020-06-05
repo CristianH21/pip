@@ -223,6 +223,82 @@ const addStudent = data => {
   });
 }
 
+const getStudentById = studentId => {
+  return new Promise( async (resolve, reject) => {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const queryText = `SELECT * FROM students WHERE id = $1 AND enable = $2 AND deleted_logical = $3`;
+      const res = await client.query(queryText, [studentId, true, false]);
+      await client.query('COMMIT');
+      resolve(res);
+    } catch (error) {
+      await client.query('ROLLBACK');
+      reject(error);
+    } finally {
+      client.release();
+    }
+  });
+}
+
+const updateStudent = (data, studentId) => {
+  return new Promise( async (resolve, reject) => {
+    const client = await pool.connect();
+    const {
+      studentNumber,
+      firstName,
+      lastNameFather,
+      lastNameMother,
+      dateOfBirth,
+      gender,
+      address,
+      city,
+      state,
+      country,
+      zipCode,
+      reference,
+    } = data;
+    try {
+      await client.query('BEGIN');
+      const queryText = `
+        UPDATE students
+        SET student_number = $1, first_name = $2, last_name_father = $3, last_name_mother = $4, date_of_birth = $5,
+        gender = $6, address = $7, city = $8, state = $9, country = $10, zip_code = $11, reference = $12
+        WHERE id = $13 AND enable = $14 AND deleted_logical = $15`;
+      const res = await client.query(queryText, [studentNumber, firstName, lastNameFather, lastNameMother,
+        dateOfBirth, gender, address, city, state, country, zipCode, reference, studentId, true, false]);
+      await client.query('COMMIT');
+      resolve(res);
+    } catch (error) {
+      await client.query('ROLLBACK');
+      reject(error);
+    } finally {
+      client.release();
+    }
+  }); 
+}
+
+const delStudent = studentId => {
+  return new Promise( async (resolve, reject) => {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const queryText = `
+        UPDATE students
+        SET enable = $1, deleted_logical = $2 
+        WHERE id = $3`;
+      const res = await client.query(queryText, [false, true, studentId]);
+      await client.query('COMMIT');
+      resolve(res);
+    } catch (error) {
+      await client.query('ROLLBACK');
+      reject(error);
+    } finally {
+      client.release();
+    }
+  }); 
+}
+
 const getTeachers = userId => {
   return new Promise( async (resolve, reject) => {
     const client = await pool.connect();
@@ -336,6 +412,82 @@ const getSubjects = () => {
   }); 
 }
 
+const getTeacherById = teacherId => {
+  return new Promise( async (resolve, reject) => {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const queryText = `SELECT * FROM staff WHERE id = $1 AND enable = $2 AND deleted_logical = $3`;
+      const res = await client.query(queryText, [teacherId, true, false]);
+      await client.query('COMMIT');
+      resolve(res);
+    } catch (error) {
+      await client.query('ROLLBACK');
+      reject(error);
+    } finally {
+      client.release();
+    }
+  });
+}
+
+const updateTeacher = (data, teacherId) => {
+  return new Promise( async (resolve, reject) => {
+    const client = await pool.connect();
+    const {
+      staffNumber,
+      firstName,
+      lastNameFather,
+      lastNameMother,
+      dateOfBirth,
+      gender,
+      address,
+      city,
+      state,
+      country,
+      zipCode,
+      reference,
+    } = data;
+    try {
+      await client.query('BEGIN');
+      const queryText = `
+        UPDATE staff
+        SET staff_number = $1, first_name = $2, last_name_father = $3, last_name_mother = $4, date_of_birth = $5,
+        gender = $6, address = $7, city = $8, state = $9, country = $10, zip_code = $11, reference = $12
+        WHERE id = $13 AND enable = $14 AND deleted_logical = $15`;
+      const res = await client.query(queryText, [staffNumber, firstName, lastNameFather, lastNameMother,
+        dateOfBirth, gender, address, city, state, country, zipCode, reference, teacherId, true, false]);
+      await client.query('COMMIT');
+      resolve(res);
+    } catch (error) {
+      await client.query('ROLLBACK');
+      reject(error);
+    } finally {
+      client.release();
+    }
+  }); 
+}
+
+const delTeacher = teacherId => {
+  return new Promise( async (resolve, reject) => {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const queryText = `
+        UPDATE staff
+        SET enable = $1, deleted_logical = $2 
+        WHERE id = $3`;
+      const res = await client.query(queryText, [false, true, teacherId]);
+      await client.query('COMMIT');
+      resolve(res);
+    } catch (error) {
+      await client.query('ROLLBACK');
+      reject(error);
+    } finally {
+      client.release();
+    }
+  }); 
+}
+
 const addSubject = data => {
   return new Promise( async (resolve, reject) => {
     const client = await pool.connect();
@@ -349,6 +501,67 @@ const addSubject = data => {
         VALUES
         ($1, $2, $3, $4, $5, $6)`;
       const res = await client.query(queryText, [name, abbreviation, grade, date, true, false]);
+      await client.query('COMMIT');
+      resolve(res);
+    } catch (error) {
+      await client.query('ROLLBACK');
+      reject(error);
+    } finally {
+      client.release();
+    }
+  }); 
+}
+
+const updateSubject = (data, subjectId) => {
+  return new Promise( async (resolve, reject) => {
+    const client = await pool.connect();
+    const { name, abbreviation, grade } = data;
+    try {
+      await client.query('BEGIN');
+      const queryText = `
+      UPDATE subjects
+      SET name = $1, abbreviation = $2, grade = $3
+      WHERE id = $4 AND enable = $5 AND deleted_logical = $6`;
+      const res = await client.query(queryText, [name, abbreviation, grade, subjectId, true, false]);
+      await client.query('COMMIT');
+      resolve(res);
+    } catch (error) {
+      await client.query('ROLLBACK');
+      reject(error);
+    } finally {
+      client.release();
+    }
+  }); 
+}
+
+const delSubject = subjectId => {
+  return new Promise( async (resolve, reject) => {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const queryText = `
+        UPDATE subjects
+        SET enable = $1, deleted_logical = $2
+        WHERE id = $3`;
+      const res = await client.query(queryText, [false, true, subjectId]);
+      await client.query('COMMIT');
+      resolve(res);
+    } catch (error) {
+      await client.query('ROLLBACK');
+      reject(error);
+    } finally {
+      client.release();
+    }
+  }); 
+}
+
+const getSubjectById = subjectId => {
+  return new Promise( async (resolve, reject) => {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const queryText = `SELECT * FROM subjects WHERE id = $1 AND enable = $2 AND deleted_logical = $3`;
+      const res = await client.query(queryText, [subjectId, true, false]);
       await client.query('COMMIT');
       resolve(res);
     } catch (error) {
@@ -862,6 +1075,52 @@ const getAssignmentById = assignmentId => {
   });
 }
 
+const addStudentAssignment = (studentId, assignmentId, file, fileLink) => {
+  return new Promise( async (resolve, reject) => {
+    const client = await pool.connect();
+    const { name, size, mimetype } = file;
+    const date = new Date().toISOString();
+    try {
+      await client.query('BEGIN');
+      const queryText = `
+        INSERT INTO assignments_students
+        (file_name, file_size, file_mimetype, file_link, points, delivered, returned, date_registered, enable, deleted_logical, id_assignments_fk, id_students_fk) 
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`;
+      const res = await client.query(queryText, [name, size, mimetype, fileLink, 0, true, false, date, true, false, assignmentId, studentId]);
+      await client.query('COMMIT');
+      resolve(res);
+    } catch (error) {
+      console.error(error);
+      await client.query('ROLLBACK');
+      reject(error);
+    } finally {
+      client.release();
+    }
+  });
+}
+
+const getAssignmentByStudent = (assignmentId, studentId) => {
+  return new Promise( async (resolve, reject) => {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const queryText = `
+        SELECT file_link, delivered, returned
+        FROM assignments_students
+        WHERE id_assignments_fk = $1 AND id_students_fk = $2 AND enable = $3 AND deleted_logical = $4`;
+      const res = await client.query(queryText, [assignmentId, studentId, true, false]);
+      await client.query('COMMIT');
+      resolve(res);
+    } catch (error) {
+      console.error(error)
+      await client.query('ROLLBACK');
+      reject(error);
+    } finally {
+      client.release();
+    }
+  }); 
+}
+
 module.exports = {
   userLogin,
   getUserAuth,
@@ -869,10 +1128,19 @@ module.exports = {
   updateProfile,
   getStudents,
   addStudent,
+  getStudentById,
+  updateStudent,
+  delStudent,
   getTeachers,
   addTeacher,
+  getTeacherById,
+  updateTeacher,
+  delTeacher,
   getSubjects,
   addSubject,
+  updateSubject,
+  delSubject,
+  getSubjectById,
   getSubjectsByStudent,
   getSubjectsByTeacher,
   getGroups,
@@ -889,5 +1157,7 @@ module.exports = {
   addPeriod,
   getClasswork,
   addAssignment,
-  getAssignmentById
+  getAssignmentById,
+  addStudentAssignment,
+  getAssignmentByStudent
 }

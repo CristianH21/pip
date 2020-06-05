@@ -1,6 +1,6 @@
 "use strict";
 
-const { getSubjectsByStudent, getClasswork } = require('../config/db.config');
+const { getSubjectsByStudent, getClasswork, addStudentAssignment } = require('../config/db.config');
 const awsS3 = require('../config/aws.config');
 
 const fetchSubjectsByStudent = async (req, res) => {
@@ -57,15 +57,22 @@ const fecthClasswork = async (req, res) => {
 
 const uploadAssignment = async (req, res) => {
 
-    const { data } = req.body;
-    var fileBuffer = Buffer.from(data.fileName, 'base64');
-    data.buffer = fileBuffer;
+    const { file } = req.files;
+    const { studentId, assignmentId } = req.params;
     
     try {
-        const s3 = await awsS3.sign_s3_v2(data);
-        console.log('s3 response: ', s3);
+        const s3 = await awsS3.sign_s3_v2(file);
+        const userRes = await addStudentAssignment(studentId, assignmentId, file, s3.Location);
+
+        res.status(200).json({
+            status: 200,
+            message: 'Assignment uploaded.',
+            result: userRes.rows
+        });
     } catch (error) {
-        console.error(error);
+        res.status(400).json({
+            errors: [{ msg: error.message}]
+        });
     }
 
     
