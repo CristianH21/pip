@@ -1,13 +1,16 @@
 "use strict";
 
+require('dotenv').config();
 const Pool = require('pg').Pool
 const pool = new Pool({
-  user: 'superadmin',
-  host: 'aa193weavnirl1c.cx5wk53ci6sc.us-east-2.rds.amazonaws.com',
-  database: 'ebdb',
-  password: 'pip_2020?',
-  port: 5432,
+  user: process.env.PG_USER,
+  host: process.env.PG_HOST,
+  database: process.env.PG_DATABASE,
+  password: process.env.PG_PASSWORD,
+  port: process.env.PG_PORT,
 });
+
+console.log()
 
 const userLogin = ({ userNumber, password }) => {
     return new Promise( async (resolve, reject) => {
