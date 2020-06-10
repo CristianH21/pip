@@ -1,5 +1,6 @@
 "use strict";
 
+const logger = require('../config/logger.config');
 const { getAssignmentById, getAssignmentByStudent } = require('../config/db.config');
 
 const fetchAssignmentById = async (req, res) => {

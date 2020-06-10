@@ -1,5 +1,6 @@
 "use strict";
 
+const logger = require('../config/logger.config');
 const { getSubjects, addSubject, getSubjectById, updateSubject, delSubject } = require('../config/db.config');
 
 const getAllSubjects = async (req, res) => {

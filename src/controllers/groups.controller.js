@@ -1,5 +1,6 @@
 "use strict";
 
+const logger = require('../config/logger.config');
 const { getGroups, addGroup } = require('../config/db.config');
 
 const getAllGroups = async (req, res) => {

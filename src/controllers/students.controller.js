@@ -1,6 +1,7 @@
 "use strict";
 
-const { getSubjectsByStudent, getClasswork, addStudentAssignment } = require('../config/db.config');
+const logger = require('../config/logger.config');
+const { getSubjectsByStudent, getClassworkByStudent, addStudentAssignment } = require('../config/db.config');
 const awsS3 = require('../config/aws.config');
 
 const fetchSubjectsByStudent = async (req, res) => {
@@ -35,7 +36,7 @@ const fecthClasswork = async (req, res) => {
     const { id } = req.params;
 
     try {     
-        const userRes = await getClasswork(id);
+        const userRes = await getClassworkByStudent(id);
 
         if (userRes.rowCount == 0) {
             return res.status(400).json({
@@ -58,11 +59,13 @@ const fecthClasswork = async (req, res) => {
 const uploadAssignment = async (req, res) => {
 
     const { file } = req.files;
+    const { comment } = req.body;
     const { studentId, assignmentId } = req.params;
+
     
     try {
         const s3 = await awsS3.sign_s3_v2(file);
-        const userRes = await addStudentAssignment(studentId, assignmentId, file, s3.Location);
+        const userRes = await addStudentAssignment(studentId, assignmentId, file, s3.Location, comment);
 
         res.status(200).json({
             status: 200,

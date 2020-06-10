@@ -1,5 +1,6 @@
 "use strict";
 
+const logger = require('../config/logger.config');
 const { 
     getClassrooms,
     addClassroom,

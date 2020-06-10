@@ -1,6 +1,6 @@
 const jwt = require('jsonwebtoken');
-const roles = require('../config/roles');
-const config = require('config');
+const roles = require('../config/roles.config')
+require('dotenv').config();
 
 module.exports = (req, res, next) => {
     const token = req.header('x-auth-token');
@@ -12,7 +12,7 @@ module.exports = (req, res, next) => {
     }
 
     try {
-        const decoded = jwt.verify(token, config.get('jwtSecret'));
+        const decoded = jwt.verify(token, process.env.jwtSecret);
 
         if (roles[decoded.user.role].find( url => { return url === req.baseUrl })) {
             req.user = decoded.user;

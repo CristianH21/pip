@@ -2,7 +2,8 @@
 
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const config = require('config');
+const logger = require('../config/logger.config');
+require('dotenv').config();
 const User = require('../models/user.model');
 const { userLogin, getUserAuth, updatePassword } = require('../config/db.config');
 
@@ -38,21 +39,24 @@ const login = async (req, res) => {
 
         jwt.sign( 
             payload, 
-            config.get('jwtSecret'),
+            process.env.jwtSecret,
             { expiresIn: 360000},
             ( err, token) => {
                 if (err) throw err
-                res.status(201).json({
+                res.status(200).json({
                     status: 200,
                     message: 'User logged in',
                     token: token
                 });
             });
 
+        logger.info(`${userNumber}, ha iniciado sesión.`);
+
     } catch (error) {
         res.status(400).json({
             errors: [{ msg: error.message}]
         });
+        logger.error(`${userNumber}, ha fallado en iniciar sesión; razon: ${error.message}`);
     }
 
 };
@@ -87,8 +91,6 @@ const changePassword = async (req, res) => {
     const { userId } = req.user;
     const { password } = req.body;
 
-    console.log('password: ', password)
-
     const salt = bcrypt.genSaltSync(10);
     const hash = bcrypt.hashSync(password, salt);
 
@@ -108,6 +110,7 @@ const changePassword = async (req, res) => {
             user: authRes.rows[0]
         });
         
+        logger.info(`${authRes.rows[0].user_number}, ha restablecido su contraseña.`);
     } catch (error) {
         res.status(400).json({
             errors: [{ msg: error.message}]

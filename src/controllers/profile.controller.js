@@ -1,4 +1,6 @@
 "use strict";
+
+const logger = require('../config/logger.config');
 const { getProfileByUserId, updateProfile } = require('../config/db.config');
 
 const getProfile = async (req, res) => {

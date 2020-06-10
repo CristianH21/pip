@@ -1,4 +1,6 @@
 "use strict";
+
+const logger = require('../config/logger.config');
 const bcrypt = require('bcryptjs');
 const { 
     getStudents, addStudent, getStudentById, updateStudent, delStudent,

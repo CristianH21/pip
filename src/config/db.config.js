@@ -10,8 +10,6 @@ const pool = new Pool({
   port: process.env.PG_PORT,
 });
 
-console.log()
-
 const userLogin = ({ userNumber, password }) => {
     return new Promise( async (resolve, reject) => {
         const client = await pool.connect();
@@ -942,7 +940,7 @@ const updatePassword = (userId, hash) => {
       const queryText = `
         UPDATE users
         SET password = $1, new_user = $2
-        WHERE id = $3 AND enable = $4 AND deleted_logical = $5`;
+        WHERE id = $3 AND enable = $4 AND deleted_logical = $5 RETURNING user_number`;
       const res = await client.query(queryText, [hash, false, userId, true, false]);
       await client.query('COMMIT');
       resolve(res);
@@ -1036,6 +1034,39 @@ const getClasswork = classId => {
   });
 }
 
+const getClassworkByStudent = classId => {
+  return new Promise( async (resolve, reject) => {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const queryText = `
+        SELECT * FROM periods WHERE id_classes_fk = $1 AND enable = $2 AND deleted_logical = $3`;
+      const res = await client.query(queryText, [classId, true, false]);
+
+      res.rows.forEach(async (period, index) => {
+        res.rows[index].assignments = null;
+        const assignmentsRes = await client.query(`
+          SELECT a.id, a.type, a.title, a.instructions, a.date_registered, ass.delivered
+          FROM assignments a
+          LEFT JOIN assignments_students ass
+          ON ass.id_assignments_fk = a.id
+          WHERE a.id_periods_fk = $1 AND a.enable = $2 AND a.deleted_logical = $3`,
+          [period.id, true, false]);
+          res.rows[index].assignments = assignmentsRes.rows;
+          console.log(res.rows[index]);
+      });
+
+      await client.query('COMMIT');
+      resolve(res);
+    } catch (error) {
+      await client.query('ROLLBACK');
+      reject(error);
+    } finally {
+      client.release();
+    }
+  });
+}
+
 const addAssignment = (periodId, data) => {
   return new Promise( async (resolve, reject) => {
     const client = await pool.connect();
@@ -1078,7 +1109,7 @@ const getAssignmentById = assignmentId => {
   });
 }
 
-const addStudentAssignment = (studentId, assignmentId, file, fileLink) => {
+const addStudentAssignment = (studentId, assignmentId, file, fileLink, comment) => {
   return new Promise( async (resolve, reject) => {
     const client = await pool.connect();
     const { name, size, mimetype } = file;
@@ -1087,9 +1118,9 @@ const addStudentAssignment = (studentId, assignmentId, file, fileLink) => {
       await client.query('BEGIN');
       const queryText = `
         INSERT INTO assignments_students
-        (file_name, file_size, file_mimetype, file_link, points, delivered, returned, date_registered, enable, deleted_logical, id_assignments_fk, id_students_fk) 
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`;
-      const res = await client.query(queryText, [name, size, mimetype, fileLink, 0, true, false, date, true, false, assignmentId, studentId]);
+        (file_name, file_size, file_mimetype, file_link, comment, points, delivered, returned, date_registered, enable, deleted_logical, id_assignments_fk, id_students_fk) 
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`;
+      const res = await client.query(queryText, [name, size, mimetype, fileLink, comment, 0, true, false, date, true, false, assignmentId, studentId]);
       await client.query('COMMIT');
       resolve(res);
     } catch (error) {
@@ -1159,6 +1190,7 @@ module.exports = {
   getClassworkByClass,
   addPeriod,
   getClasswork,
+  getClassworkByStudent,
   addAssignment,
   getAssignmentById,
   addStudentAssignment,
